@@ -1,0 +1,25 @@
+# Agent orchestration
+langgraph
+langchain-core
+langchain-anthropic
+langchain-openai
+langchain-ollama
+
+# Retrieval
+qdrant-client[fastembed]
+rank-bm25
+
+# Ingest
+arxiv
+pymupdf
+
+# Service
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# Utilities
+python-dotenv
+httpx
+rich

@@ -1,0 +1,32 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    healthcheck:
+      # Qdrant's image has no curl or wget, so probe from inside with bash's
+      # /dev/tcp rather than adding a package just to health-check it.
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  anchor:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Non-empty URL switches anchor/index/vector.py from embedded mode to
+      # this service. No code change.
+      ANCHOR_QDRANT_URL: http://qdrant:6333
+      ANCHOR_LLM_PROVIDER: ${ANCHOR_LLM_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
+volumes:
+  qdrant_storage:
