@@ -12,3 +12,8 @@ data/*.jsonl
 dist/
 build/
 .DS_Store
+data/mentions.jsonl
+data/resolved_authors.jsonl
+data/graph/
+data/*.backup.jsonl
+logs/

@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from anchor.agent.state import AnchorState
 from anchor.config import settings
-from anchor.index import keyword, vector
+from anchor.index import graph_search, keyword, vector
 from anchor.llm import get_llm
 from anchor.structured import invoke_structured
 from anchor.telemetry import record_call
@@ -48,8 +48,12 @@ ROUTE_PROMPT = ChatPromptTemplate.from_messages(
             "system",
             "You route a question to a retriever over a corpus of arXiv papers.\n\n"
             "vector  - conceptual or topical questions ('what work is there on X')\n"
-            "keyword - exact strings: arXiv ids, author surnames, named models\n"
-            "hybrid  - anything combining the two, or when you are unsure\n\n"
+            "keyword - exact strings: arXiv ids, named models, exact phrases\n"
+            "graph   - questions about a specific *person*: what has X written, "
+            "which papers is X an author of\n"
+            "hybrid  - anything combining these, or when you are unsure\n\n"
+            "Prefer graph for author questions: it traverses resolved people, so "
+            "it does not conflate different researchers who share a name. "
             "Prefer hybrid when in doubt.",
         ),
         ("human", "{question}"),
@@ -75,6 +79,8 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages(
             "system",
             "Answer the question using only the passages provided.\n\n"
             "Cite every claim with the arXiv id in square brackets, e.g. [2501.01234]. "
+            "If a passage notes that several distinct researchers share an author's "
+            "name, say so rather than presenting their work as one person's. "
             "If the passages do not support an answer, say exactly what is missing and "
             "state that you cannot answer from this corpus. Do not use outside "
             "knowledge and do not guess — an honest 'not in the corpus' is correct, a "
@@ -88,10 +94,19 @@ ANSWER_PROMPT = ChatPromptTemplate.from_messages(
 def _format(docs: list[dict]) -> str:
     if not docs:
         return "(no passages retrieved)"
-    return "\n\n".join(
-        f"[{d['arxiv_id']}] {d['title']}\nAuthors: {', '.join(d['authors'][:6])}\n{d['text']}"
-        for d in docs
-    )
+
+    blocks = []
+    for d in docs:
+        header = f"[{d['arxiv_id']}] {d['title']}\nAuthors: {', '.join(d['authors'][:6])}"
+        # Surface name ambiguity so the answer can distinguish one researcher's
+        # bibliography from several people's work merged under a shared name.
+        if d.get("ambiguity", 1) > 1:
+            header += (
+                f"\nNOTE: {d['ambiguity']} distinct researchers in this corpus share "
+                f"this name; this paper belongs to person {d['person_id']}."
+            )
+        blocks.append(f"{header}\n{d['text']}")
+    return "\n\n".join(blocks)
 
 
 def _dedupe(docs: list[dict]) -> list[dict]:
@@ -120,7 +135,8 @@ def route_node(state: AnchorState) -> AnchorState:
         ROUTE_PROMPT.format_messages(question=state["question"]),
         default=RouteDecision(route="hybrid", reason="router failed, defaulting to hybrid"),
     )
-    route = decision.route if decision.route in ("vector", "keyword", "hybrid") else "hybrid"
+    valid = ("vector", "keyword", "graph", "hybrid")
+    route = decision.route if decision.route in valid else "hybrid"
     return {
         "route": route,
         "query": state["question"],
@@ -136,6 +152,12 @@ def retrieve_node(state: AnchorState) -> AnchorState:
         docs = vector.search(query)
     elif route == "keyword":
         docs = keyword.search(query)
+    elif route == "graph":
+        docs = graph_search.search(query)
+        # The graph only knows about people. An author question that names
+        # nobody it recognises would otherwise return nothing at all.
+        if not docs:
+            docs = _dedupe(vector.search(query) + keyword.search(query))
     else:
         docs = _dedupe(vector.search(query) + keyword.search(query))
 

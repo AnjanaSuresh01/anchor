@@ -160,6 +160,64 @@ evals/
   run_eval.py            resumable sweep + report
 ```
 
+## Entity resolution
+
+Author questions are where name matching quietly fails. Ask BM25 for papers by
+*Gian Luca Pozzato* and it returns 8 papers, of which 2 are his — the rest match
+on common tokens. Ask it for *Wei Zhang* and it returns one author's
+bibliography, when the corpus contains **seven different researchers with that
+name**.
+
+So mentions are resolved into people before the graph is built:
+
+```bash
+python -m anchor.entities.survey          # how much resolution is needed?
+python -m anchor.entities.resolve         # Splink -> resolved_authors.jsonl
+python -m anchor.entities.threshold_sweep # pick the threshold from evidence
+python -m anchor.entities.graph           # load Kuzu: (:Person)-[:AUTHORED]->(:Paper)
+python -m anchor.entities.analyse         # what changed vs matching on name
+```
+
+| | |
+|---|---|
+| Author mentions | 10,244 |
+| Distinct name strings (baseline) | 9,289 |
+| **Resolved people** | **9,922** |
+| Names split into >1 person | 558 |
+| Clusters spanning >1 surname | 0 |
+
+Resolution yields *more* entities than name matching, not fewer — the work is
+mostly in refusing to merge, not in merging.
+
+### What went wrong on the way
+
+Worth recording, because each failure was only visible through a check:
+
+- **The first model over-merged catastrophically.** Nine researchers —
+  `hwalsuk lee`, `hwaran lee`, `hyeonju lee`, … — became one person. Cause:
+  co-authors were compared with Levenshtein over a joined string, where
+  `"chen li wang"` and `"chen lin wang"` differ by one character while naming
+  different people. Fixed with set intersection over full co-author names.
+- **The second model merged nothing at all** — 10,244 mentions, 10,244 people.
+  Splink reported `first_name: m values not fully trained`; the EM blocking
+  rule held `first_name` constant while also comparing it, so its weights were
+  never learned.
+- **Then the maximum match probability across 408,730 pairs was 0.035.** Two
+  causes: co-authors stored as bare surnames (sharing "wang" is nearly no
+  evidence) and no term-frequency adjustment, so agreeing on `wei` counted the
+  same as agreeing on `hwalsuk`. Fixing both moved the maximum to 0.98.
+- **The graph retriever matched names by substring**, so "Wei Zhang" also
+  matched "Xinwei Zhang" and reported 3 people sharing the name instead of 7.
+
+The threshold is chosen by `threshold_sweep.py` rather than asserted: across
+0.80–0.98 the number of clusters spanning two surnames stays at zero, so a high
+threshold buys nothing but lost recall.
+
+**Known limitation:** blocking on exact surname plus a TF-adjusted name
+comparison means the model never joins *different* name strings — `Y. Zhang`
+and `Yang Zhang` stay separate. It does the hard job (splitting same-name
+different-people) well and the easy one not at all.
+
 ## Backend notes
 
 Written against Claude, OpenAI, OpenRouter and Ollama. Two things worth knowing

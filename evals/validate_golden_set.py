@@ -27,15 +27,19 @@ GOLDEN = Path(__file__).parent / "golden_set.jsonl"
 # still wrong - 2607.21535v1 evaluates a mamba2-hybrid at 1M context. Anything
 # flagged here gets read by hand before the set is trusted.
 UNANSWERABLE_PROBES = {
-    "q41": ["error correction", "superconducting"],
+    # First term decides. Getting this order wrong produces false alarms: an
+    # earlier version listed "error correction" first for q41 and "gdp" first
+    # for q49, both of which appear in the corpus while the terms that actually
+    # make those questions unanswerable - "superconducting", "belgium" - do not.
+    "q41": ["superconducting", "error correction"],
     "q42": ["alphafold", "protein structure"],
     "q43": ["llama 4", "gpu-hour"],
-    "q44": ["differential privacy", "federated"],
-    "q45": ["amharic"],
-    "q46": ["mmlu"],
-    "q47": ["sparse autoencoder"],
+    "q44": ["byzantine fault"],
+    "q45": ["quechua"],
+    "q46": ["sepsis"],
+    "q47": ["traffic signal"],
     "q48": ["cholecystectomy"],
-    "q49": ["gdp", "belgium"],
+    "q49": ["belgium", "gdp"],
     "q50": ["roman empire"],
 }
 
