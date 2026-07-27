@@ -11,6 +11,10 @@ from __future__ import annotations
 
 import re
 
+from anchor.config import settings
+
+_TOP_K = settings.top_k
+
 # Phrases the answer prompt steers the model toward when evidence is missing.
 REFUSAL_PATTERNS = [
     r"cannot answer",
@@ -50,9 +54,17 @@ def score(question: dict, answer: str, docs: list[dict]) -> dict:
     answerable = question["answerable"]
 
     # Recall only means something where ground-truth ids were specified.
+    #
+    # Note the ceiling: this is recall@k, so a question with more relevant
+    # papers than `top_k` cannot reach 1.0 no matter how good retrieval is.
+    # q34 ("papers by Wei Zhang") has 7 relevant papers against top_k=6, so its
+    # maximum is 0.857. The cap applies identically to every architecture, so
+    # the comparison stays fair, but the absolute number is not a percentage of
+    # what was achievable.
     recall = None
     if expected:
         recall = len(expected & retrieved) / len(expected)
+        capped = min(len(expected), _TOP_K) / len(expected)
 
     # A citation is only supported if that paper was actually retrieved.
     # Anything else is the model citing from memory - the failure mode the
@@ -61,6 +73,9 @@ def score(question: dict, answer: str, docs: list[dict]) -> dict:
 
     return {
         "recall": recall,
+        # What recall could have been at this k. Anything below 1.0 flags a
+        # question whose ground truth does not fit in the retrieval budget.
+        "recall_ceiling": capped if expected else None,
         "retrieved_n": len(docs),
         "refused": refused,
         # On an answerable question the correct behaviour is to answer; on an
@@ -102,6 +117,9 @@ def summarise(rows: list[dict]) -> dict:
         "n": len(rows),
         "recall@k": mean([r["recall"] for r in with_truth]),
         "recall_n": len(with_truth),
+        # Below 1.0 means some question's ground truth is larger than top_k, so
+        # perfect retrieval could not have scored 1.0.
+        "recall_ceiling": mean([r.get("recall_ceiling") for r in with_truth]),
         # The headline honesty metric: refuse when you should, answer when you can.
         "refusal_accuracy": mean([float(r["refusal_correct"]) for r in rows]),
         "correct_refusals": (
