@@ -22,6 +22,7 @@ from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, ValidationError
 
 from anchor.llm import get_llm
+from anchor.telemetry import record_call
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -103,6 +104,7 @@ def invoke_structured(
 
     for attempt in range(attempts):
         try:
+            record_call()
             raw = llm.invoke(prompt).content
         except Exception:  # noqa: BLE001 - a dead backend must not kill the graph
             return default, False

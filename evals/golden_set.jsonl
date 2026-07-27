@@ -1,0 +1,50 @@
+{"id": "q01", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22520v1"], "question": "What is a 'regression' as opposed to a 'residual failure' when adding skills to an LLM agent?"}
+{"id": "q02", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22520v1"], "question": "How many runs were used to measure whether procedural skills help or hurt LLM agents?"}
+{"id": "q03", "type": "single_hop", "answerable": true, "expected_ids": ["2607.21793v1"], "question": "By how much does QLPO reduce response length, and over what range of model sizes was it tested?"}
+{"id": "q04", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22002v1"], "question": "How does VIGOR decide which examples get more rollouts in RLVR training?"}
+{"id": "q05", "type": "single_hop", "answerable": true, "expected_ids": ["2607.21552v1"], "question": "How does MIRROR pick which modality acts as the teacher during training?"}
+{"id": "q06", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22511v1"], "question": "Which proof assistant does CausalForge use to ground automated causal-inference research?"}
+{"id": "q07", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22489v1"], "question": "What signal does kappa-LoRA use to decide which LoRA matrices are worth updating?"}
+{"id": "q08", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22479v1"], "question": "What is a 'legal nugget' and which country's legal collections were used to evaluate the idea?"}
+{"id": "q09", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22468v1"], "question": "What limitation of ADAPT-VQE does ADAPT-GQE aim to overcome?"}
+{"id": "q10", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22465v1"], "question": "Why do per-call LLM routers struggle in agentic workflows according to TRACE-Router?"}
+{"id": "q11", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22529v1"], "question": "What dilemma between task diversity and verification reliability does Skill Self-Play identify?"}
+{"id": "q12", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22534v1"], "question": "Why does SM4RT argue that treating motion as point-wise displacement is inadequate?"}
+{"id": "q13", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22513v1"], "question": "Which LLM family assigned the highest credibility to ethnonationalist pseudo-science, and in which configuration?"}
+{"id": "q14", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22518v1"], "question": "What problem does PinEqualizer address at Pinterest?"}
+{"id": "q15", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22471v1"], "question": "What two defects does MineValiCoder attribute to the stochasticity of LLM-generated test cases?"}
+{"id": "q16", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22525v1"], "question": "Which high-stakes domain is the explainable reinforcement learning work aimed at assisting?"}
+{"id": "q17", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22516v1"], "question": "What shortcoming of coordinate-wise rotation-gate encodings do Quantum Spectral Models address?"}
+{"id": "q18", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22389v1"], "question": "What does HiKV do to accelerate LLM decoding?"}
+{"id": "q19", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22463v1"], "question": "How many participants took part in the trio-ethnography on LLM-supported programming education, and what were their roles?"}
+{"id": "q20", "type": "single_hop", "answerable": true, "expected_ids": ["2607.22368v1"], "question": "What question does the paper on agent benchmarks and protocol validity raise about measuring capability?"}
+{"id": "q21", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.21793v1", "2607.22002v1"], "question": "Compare how QLPO and VIGOR each reduce the cost of reinforcement learning training for reasoning models."}
+{"id": "q22", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.22389v1", "2607.21475v1"], "question": "What different approaches to KV-cache management appear in this corpus?"}
+{"id": "q23", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.22520v1", "2607.22529v1"], "question": "What do these papers say about equipping LLM agents with skills, both the benefits and the costs?"}
+{"id": "q24", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.22511v1", "2607.22375v1"], "question": "Which papers propose agentic systems for automating research, and how do they differ?"}
+{"id": "q25", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.22516v1", "2607.22468v1"], "question": "What quantum computing applications of machine learning appear in this corpus?"}
+{"id": "q26", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.22465v1", "2607.22400v1"], "question": "How do these papers approach adaptive resource or model allocation for agentic AI?"}
+{"id": "q27", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.22319v1", "2607.22479v1"], "question": "What retrieval-augmented generation techniques are discussed, and in which domains are they applied?"}
+{"id": "q28", "type": "multi_hop", "answerable": true, "expected_ids": ["2607.22513v1", "2607.21306v1"], "question": "What concerns about LLM assistant behaviour toward users are raised in this corpus?"}
+{"id": "q29", "type": "exact_id", "answerable": true, "expected_ids": ["2607.21793v1"], "question": "What is the paper with arXiv id 2607.21793 about?"}
+{"id": "q30", "type": "exact_id", "answerable": true, "expected_ids": ["2607.22511v1"], "question": "Summarise arXiv 2607.22511."}
+{"id": "q31", "type": "exact_id", "answerable": true, "expected_ids": ["2607.22534v1"], "question": "What does the paper 2607.22534v1 propose?"}
+{"id": "q32", "type": "exact_id", "answerable": true, "expected_ids": ["2607.22468v1"], "question": "Describe the contribution of arXiv id 2607.22468."}
+{"id": "q33", "type": "exact_id", "answerable": true, "expected_ids": ["2607.22479v1"], "question": "What is arXiv 2607.22479 about?"}
+{"id": "q34", "type": "author", "answerable": true, "expected_ids": [], "question": "Which papers in this corpus are authored by Wei Zhang?"}
+{"id": "q35", "type": "author", "answerable": true, "expected_ids": [], "question": "Find papers co-authored by Gian Luca Pozzato."}
+{"id": "q36", "type": "author", "answerable": true, "expected_ids": [], "question": "Which papers list Alessio Merlo as an author?"}
+{"id": "q37", "type": "author", "answerable": true, "expected_ids": [], "question": "What work has Mohamed Hamlich contributed to in this collection?"}
+{"id": "q38", "type": "aggregate", "answerable": true, "expected_ids": [], "question": "What are the main themes in the agentic AI papers in this corpus?"}
+{"id": "q39", "type": "aggregate", "answerable": true, "expected_ids": [], "question": "Which papers deal with information retrieval or recommender systems?"}
+{"id": "q40", "type": "aggregate", "answerable": true, "expected_ids": [], "question": "What benchmarks are introduced in this corpus?"}
+{"id": "q41", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What do these papers say about quantum error correction thresholds in superconducting qubits?", "note": "Corpus has quantum ML papers but nothing on QEC thresholds - a near-miss, not an obvious out-of-domain question."}
+{"id": "q42", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What is the reported accuracy of AlphaFold 3 on protein structure prediction?", "note": "Plausible AI topic, absent from corpus."}
+{"id": "q43", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "How many GPU-hours were required to train Llama 4?", "note": "Plausible, specific, absent."}
+{"id": "q44", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What do these papers report about differential privacy guarantees in federated learning?", "note": "Plausible ML topic, absent."}
+{"id": "q45", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "Which paper introduces a new dataset for Amharic speech recognition?", "note": "Corpus has multilingual NLP work but no Amharic ASR dataset."}
+{"id": "q46", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What are the MMLU scores reported for GPT-5 in these papers?", "note": "Plausible benchmark question, absent."}
+{"id": "q47", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What do these papers find using sparse autoencoders to interpret model features?", "note": "Hard near-miss: the corpus HAS an interpretability paper (2607.22367v1, attention rollout), so retrieval surfaces adjacent work and the model must still refuse on sparse autoencoders specifically. Replaced an earlier Mamba/SSM question that was wrongly labelled - 2607.21535v1 does evaluate a mamba2-hybrid at 1M context, making it answerable."}
+{"id": "q48", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What surgical outcomes are reported for robotic cholecystectomy?", "note": "Clear out-of-domain control."}
+{"id": "q49", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What was the GDP of Belgium in 1995?", "note": "Clear out-of-domain control."}
+{"id": "q50", "type": "unanswerable", "answerable": false, "expected_ids": [], "question": "What do these papers conclude about the causes of the fall of the Western Roman Empire?", "note": "Clear out-of-domain control."}

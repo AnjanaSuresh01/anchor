@@ -23,6 +23,7 @@ from anchor.config import settings
 from anchor.index import keyword, vector
 from anchor.llm import get_llm
 from anchor.structured import invoke_structured
+from anchor.telemetry import record_call
 
 
 class RouteDecision(BaseModel):
@@ -171,6 +172,7 @@ def rewrite_node(state: AnchorState) -> AnchorState:
 
 
 def answer_node(state: AnchorState) -> AnchorState:
+    record_call()
     answer = (ANSWER_PROMPT | get_llm()).invoke(
         {"question": state["question"], "passages": _format(state["docs"])}
     )

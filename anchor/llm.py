@@ -80,7 +80,11 @@ def get_llm(model: str | None = None) -> BaseChatModel:
         return ChatOpenAI(
             model=name,
             temperature=settings.llm_temperature,
-            timeout=180,  # free-tier models queue; 120s is not always enough
+            # Free-tier requests queue, so the per-attempt timeout is generous —
+            # but bound the retries too. Left at the default, one request hung
+            # for 11588s during an eval sweep and wrecked the latency stats.
+            timeout=180,
+            max_retries=2,
             base_url=settings.llm_base_url or OPENROUTER_URL,
             api_key=os.environ["OPENROUTER_API_KEY"],
         )
