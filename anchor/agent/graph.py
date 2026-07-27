@@ -42,23 +42,36 @@ class GradeDecision(BaseModel):
     )
 
 
-ROUTE_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "You route a question to a retriever over a corpus of arXiv papers.\n\n"
-            "vector  - conceptual or topical questions ('what work is there on X')\n"
-            "keyword - exact strings: arXiv ids, named models, exact phrases\n"
-            "graph   - questions about a specific *person*: what has X written, "
-            "which papers is X an author of\n"
-            "hybrid  - anything combining these, or when you are unsure\n\n"
-            "Prefer graph for author questions: it traverses resolved people, so "
-            "it does not conflate different researchers who share a name. "
-            "Prefer hybrid when in doubt.",
-        ),
-        ("human", "{question}"),
-    ]
+_GRAPH_ROUTE_DOC = (
+    "graph   - questions about a specific *person*: what has X written, "
+    "which papers is X an author of\n"
 )
+_GRAPH_ROUTE_HINT = (
+    "Prefer graph for author questions: it traverses resolved people, so it "
+    "does not conflate different researchers who share a name. "
+)
+
+
+def route_prompt() -> ChatPromptTemplate:
+    """Built per call so the graph route disappears entirely when disabled —
+    offering the router an option the retriever will not honour would make the
+    with/without comparison measure prompt wording rather than retrieval."""
+    graph_on = settings.enable_graph_route and graph_search.available()
+    return ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "You route a question to a retriever over a corpus of arXiv papers.\n\n"
+                "vector  - conceptual or topical questions ('what work is there on X')\n"
+                "keyword - exact strings: arXiv ids, named models, exact phrases\n"
+                + (_GRAPH_ROUTE_DOC if graph_on else "")
+                + "hybrid  - anything combining these, or when you are unsure\n\n"
+                + (_GRAPH_ROUTE_HINT if graph_on else "")
+                + "Prefer hybrid when in doubt.",
+            ),
+            ("human", "{question}"),
+        ]
+    )
 
 GRADE_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -132,10 +145,12 @@ def route_node(state: AnchorState) -> AnchorState:
     # failed routing decision costs recall-nothing, only a little extra latency.
     decision, ok = invoke_structured(
         RouteDecision,
-        ROUTE_PROMPT.format_messages(question=state["question"]),
+        route_prompt().format_messages(question=state["question"]),
         default=RouteDecision(route="hybrid", reason="router failed, defaulting to hybrid"),
     )
-    valid = ("vector", "keyword", "graph", "hybrid")
+    valid = ["vector", "keyword", "hybrid"]
+    if settings.enable_graph_route and graph_search.available():
+        valid.append("graph")
     route = decision.route if decision.route in valid else "hybrid"
     return {
         "route": route,

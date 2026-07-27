@@ -31,10 +31,10 @@
 {"id": "q31", "type": "exact_id", "answerable": true, "expected_ids": ["2607.22534v1"], "question": "What does the paper 2607.22534v1 propose?"}
 {"id": "q32", "type": "exact_id", "answerable": true, "expected_ids": ["2607.22468v1"], "question": "Describe the contribution of arXiv id 2607.22468."}
 {"id": "q33", "type": "exact_id", "answerable": true, "expected_ids": ["2607.22479v1"], "question": "What is arXiv 2607.22479 about?"}
-{"id": "q34", "type": "author", "answerable": true, "expected_ids": [], "question": "Which papers in this corpus are authored by Wei Zhang?"}
-{"id": "q35", "type": "author", "answerable": true, "expected_ids": [], "question": "Find papers co-authored by Gian Luca Pozzato."}
-{"id": "q36", "type": "author", "answerable": true, "expected_ids": [], "question": "Which papers list Alessio Merlo as an author?"}
-{"id": "q37", "type": "author", "answerable": true, "expected_ids": [], "question": "What work has Mohamed Hamlich contributed to in this collection?"}
+{"id": "q34", "type": "author", "answerable": true, "expected_ids": ["2607.22368v1", "2607.22251v1", "2607.22038v1", "2607.17751v1", "2607.12433v1", "2607.12111v1", "2607.11725v1"], "question": "Which papers in this corpus are authored by Wei Zhang?", "note": "The hard case: these 7 papers are by 7 DIFFERENT researchers who share a name. Full recall means finding all 7; a good answer also says they are not one person."}
+{"id": "q35", "type": "author", "answerable": true, "expected_ids": ["2607.22365v1", "2607.21421v1"], "question": "Find papers co-authored by Gian Luca Pozzato."}
+{"id": "q36", "type": "author", "answerable": true, "expected_ids": ["2607.22365v1", "2607.21421v1"], "question": "Which papers list Alessio Merlo as an author?"}
+{"id": "q37", "type": "author", "answerable": true, "expected_ids": ["2607.21873v1", "2607.21577v1"], "question": "What work has Mohamed Hamlich contributed to in this collection?"}
 {"id": "q38", "type": "aggregate", "answerable": true, "expected_ids": [], "question": "What are the main themes in the agentic AI papers in this corpus?"}
 {"id": "q39", "type": "aggregate", "answerable": true, "expected_ids": [], "question": "Which papers deal with information retrieval or recommender systems?"}
 {"id": "q40", "type": "aggregate", "answerable": true, "expected_ids": [], "question": "What benchmarks are introduced in this corpus?"}

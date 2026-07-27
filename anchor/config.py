@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     top_k: int = 6
     max_grader_retries: int = 2
+    enable_graph_route: bool = True
+    """Whether the router may pick the resolved-entity graph. Turning it off is
+    how the eval isolates what entity resolution actually contributes: the same
+    agent runs with and without it, and the difference is the answer."""
 
     # Ingest
     chunk_chars: int = 1400

@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 
 from anchor.agent.graph import ANSWER_PROMPT, _dedupe, _format, build_graph
+from anchor.config import settings
 from anchor.index import keyword, vector
 from anchor.llm import get_llm
 from anchor.telemetry import counting, record_call
@@ -55,29 +56,43 @@ def hybrid(question: str) -> Run:
                trace=["vector + bm25"])
 
 
-_graph = None
+def _run_agentic(question: str, *, graph_route: bool) -> Run:
+    # The graph is rebuilt per architecture rather than cached, because the
+    # route prompt and the valid route set are both read from settings when the
+    # nodes run. A cached graph would leak one architecture's routing into the
+    # other and quietly invalidate the comparison.
+    previous = settings.enable_graph_route
+    settings.enable_graph_route = graph_route
+    try:
+        compiled = build_graph()
+        started = time.perf_counter()
+        with counting() as c:
+            final = compiled.invoke({"question": question})
+        return Run(
+            answer=final.get("answer", ""),
+            docs=final.get("docs", []),
+            calls=c["calls"],
+            seconds=time.perf_counter() - started,
+            trace=final.get("trace", []),
+        )
+    finally:
+        settings.enable_graph_route = previous
 
 
 def agentic(question: str) -> Run:
-    global _graph
-    if _graph is None:
-        _graph = build_graph()
+    return _run_agentic(question, graph_route=False)
 
-    started = time.perf_counter()
-    with counting() as c:
-        final = _graph.invoke({"question": question})
 
-    return Run(
-        answer=final.get("answer", ""),
-        docs=final.get("docs", []),
-        calls=c["calls"],
-        seconds=time.perf_counter() - started,
-        trace=final.get("trace", []),
-    )
+def agentic_graph(question: str) -> Run:
+    return _run_agentic(question, graph_route=True)
 
 
 ARCHITECTURES = {
     "A": ("naive_vector", naive_vector),
     "B": ("hybrid", hybrid),
     "C": ("agentic", agentic),
+    # C vs D is the entity-resolution experiment: identical agent, the only
+    # difference being whether the resolved-entity graph is a reachable route.
+    "D": ("agentic+graph", agentic_graph),
 }
+
