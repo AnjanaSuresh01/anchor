@@ -17,6 +17,10 @@ services:
     build: .
     ports:
       - "8000:8000"
+    volumes:
+      # Corpus is generated, not baked into the image. Run the ingest on the
+      # host first: python -m anchor.ingest.arxiv_fetch --limit 200
+      - ./data:/app/data
     environment:
       # Non-empty URL switches anchor/index/vector.py from embedded mode to
       # this service. No code change.

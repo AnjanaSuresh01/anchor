@@ -7,7 +7,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY anchor/ ./anchor/
-COPY data/corpus.jsonl ./data/corpus.jsonl
+
+# The corpus is not baked in — it's generated, gitignored, and would go stale.
+# docker-compose mounts ./data instead; run the ingest on the host first:
+#   python -m anchor.ingest.arxiv_fetch --limit 200
 
 # Bake the embedding model into the image rather than downloading it on first
 # request — otherwise the first query pays a ~130MB cold start.
