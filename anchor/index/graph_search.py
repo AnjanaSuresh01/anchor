@@ -38,6 +38,12 @@ def _query_people(con, where: str, name: str) -> list[dict]:
     return people
 
 
+MULTI_TOKEN = "a.name CONTAINS ' '"
+"""A name needs at least two tokens to be matched out of free text. A single
+token is too weak — "Chen" occurs inside ordinary words and inside hundreds of
+other names. Expressed as a space test because Kuzu has no SPLIT function."""
+
+
 def find_people(name: str) -> list[dict]:
     """People matching `name`, exact match preferred.
 
@@ -55,6 +61,27 @@ def find_people(name: str) -> list[dict]:
     if exact:
         return exact
     return _query_people(con, "lower(a.name) CONTAINS lower($name)", name)
+
+
+def find_people_in_text(text: str) -> list[dict]:
+    """People whose name appears inside `text`.
+
+    The router hands this node a whole question ("Which papers are authored by
+    Gian Luca Pozzato?"), not a bare name. Matching the question against names
+    finds nothing, so the graph route silently fell through to vector search
+    and the entity layer never ran. Inverting the containment — asking which
+    known names occur in the question — is what actually answers an author
+    question asked in natural language.
+    """
+    if not available():
+        return []
+
+    con = connect()
+    return _query_people(
+        con,
+        f"lower($name) CONTAINS lower(a.name) AND {MULTI_TOKEN}",
+        text,
+    )
 
 
 def papers_by(person_id: str) -> list[dict]:
@@ -81,7 +108,11 @@ def search(query: str, k: int | None = None) -> list[dict]:
     several different people who share a name", which is the failure this whole
     layer exists to prevent.
     """
-    people = find_people(query.strip())
+    query = query.strip()
+    # A bare name ("Wei Zhang") and a question containing one ("which papers
+    # are by Wei Zhang?") both have to work — the router passes whichever the
+    # user typed.
+    people = find_people(query) or find_people_in_text(query)
     if not people:
         return []
 
