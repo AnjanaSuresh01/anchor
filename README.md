@@ -7,11 +7,10 @@ grades what came back, and re-queries when the evidence is thin. When the corpus
 genuinely doesn't cover a question it says so instead of guessing — and the eval
 set measures how often it gets that right.
 
-> **Status:** graph, API and eval harness are built and running. The full
-> architecture comparison is still being collected — the backend is a free tier
-> capped at 50 requests/day and the sweep needs ~300, so it completes over
-> several days. **No number appears in this README until it has actually been
-> measured.** Partial results live in `evals/results.jsonl`.
+> **No number in this README is typed by hand.** The results table is generated
+> from `evals/results.jsonl` by `evals/report_markdown.py`, and every claim
+> about the corpus is checked by a script that fails loudly when it stops being
+> true. Where something is a heuristic or a known limitation, it says so.
 
 ## Architecture
 
@@ -166,14 +165,33 @@ anchor/
   index/             vector (Qdrant) + keyword (BM25) retrieval
   agent/             LangGraph state machine
   api/               FastAPI service
+  entities/          author resolution: mentions -> Splink -> Kuzu graph
   structured.py      schema-coerced output that survives a model ignoring it
   telemetry.py       measured model-call counter
 evals/
   golden_set.jsonl       50 questions with ground truth
   validate_golden_set.py ground-truth checks against the corpus
-  architectures.py       the three pipelines under comparison
+  architectures.py       the four pipelines under comparison
   metrics.py             deterministic scoring
   run_eval.py            resumable sweep + report
+  report_markdown.py     generates the README results table
+scripts/
+  status.py              one-shot consistency check
+  run_eval_daily.cmd     scheduled-task entry point
+tests/
+  preflight_llm.py       can this backend do structured output at all?
+  smoke_*.py             retrieval, graph wiring, entity graph, route toggle
+```
+
+Every check runs without an LLM except `preflight_llm.py`:
+
+```bash
+python -m scripts.status              # is everything present and consistent?
+python -m tests.smoke_retrieval       # both retrievers, plus arXiv-id lookup
+python -m tests.smoke_graph           # graph wiring and retry policy
+python -m tests.smoke_graph_search    # entity graph vs name matching
+python -m tests.smoke_route_toggle    # C and D really do differ
+python -m evals.validate_golden_set   # ground truth still holds
 ```
 
 ## Entity resolution
@@ -273,15 +291,19 @@ structured output at all.
 
 ## Roadmap
 
-- **Now** — finish collecting the architecture comparison (free-tier quota
-  limits the sweep to ~50 model calls/day), then publish the results table.
-- **Next** — calibrate the refusal heuristic against hand labels and report
-  judge–human agreement, so the honesty metric is measured rather than assumed.
-- **Then** — author-name disambiguation with Splink, loaded into a Kùzu graph,
-  exposed as a fourth `graph_traverse` retriever. arXiv author strings are
-  genuinely inconsistent ("Y. Zhang" / "Yang Zhang" / "Zhang, Y."), which makes
-  this a real entity-resolution problem rather than a toy one — and the eval
-  gets re-run with and without it to measure what resolution is worth.
+- **Calibrate the refusal heuristic.** Refusal detection is currently keyword
+  matching. Hand-labelling ~100 answers and reporting judge–human agreement
+  (Cohen's κ) would make the honesty metric measured rather than asserted. It
+  is the weakest link in the numbers above and is flagged as such in the code.
+- **Re-run against a stronger backend.** The published sweep uses a local 3B
+  model because it was the only way to run ~500 calls without a quota. The
+  agentic architectures are the ones penalised by a weak grader, so the
+  comparison is not yet a fair test of them. `.env` change, nothing else.
+- **Join abbreviated names.** Resolution splits same-name-different-people well
+  and never joins different name strings, so `Y. Zhang` and `Yang Zhang` remain
+  separate people. Blocking on surname plus a phonetic key would address it.
+- **Span-level provenance.** Citations currently point at a paper. Pointing at
+  the sentence within it is the difference between "traceable" and "verifiable".
 
 ## License
 
