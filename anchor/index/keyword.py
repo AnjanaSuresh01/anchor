@@ -33,12 +33,32 @@ def _index(corpus_path: str) -> tuple[BM25Okapi, list[dict]]:
         json.loads(line)
         for line in Path(corpus_path).read_text(encoding="utf-8").splitlines()
     ]
-    # Authors are part of the searchable text so "papers by Y. Zhang" resolves
-    # here rather than falling through to a semantic near-miss.
-    corpus = [
-        tokenize(f"{p['title']} {p['abstract']} {' '.join(p['authors'])}") for p in papers
-    ]
+    corpus = [tokenize(searchable(p)) for p in papers]
     return BM25Okapi(corpus), papers
+
+
+def searchable(paper: dict) -> str:
+    """The text BM25 indexes for a paper.
+
+    Includes the arXiv id — an id lookup is the clearest case for lexical
+    search over semantic, and it cannot match a field that was never indexed.
+    Both the versioned and bare forms go in, because `2607.21793v1` tokenizes
+    to `21793v1` and would not match a user typing `2607.21793`.
+
+    Authors are here too, so "papers by Y. Zhang" resolves lexically rather
+    than falling through to a semantic near-miss.
+    """
+    arxiv_id = paper["id"]
+    bare = arxiv_id.split("v")[0]
+    return " ".join(
+        [
+            arxiv_id,
+            bare,
+            paper["title"],
+            paper["abstract"],
+            " ".join(paper["authors"]),
+        ]
+    )
 
 
 def search(query: str, k: int | None = None) -> list[dict]:

@@ -22,6 +22,7 @@ from anchor.agent.state import AnchorState
 from anchor.config import settings
 from anchor.index import keyword, vector
 from anchor.llm import get_llm
+from anchor.structured import invoke_structured
 
 
 class RouteDecision(BaseModel):
@@ -111,15 +112,19 @@ def _dedupe(docs: list[dict]) -> list[dict]:
 
 
 def route_node(state: AnchorState) -> AnchorState:
-    decision = (ROUTE_PROMPT | get_llm().with_structured_output(RouteDecision)).invoke(
-        {"question": state["question"]}
+    # Falling back to hybrid is the safe default: it runs both retrievers, so a
+    # failed routing decision costs recall-nothing, only a little extra latency.
+    decision, ok = invoke_structured(
+        RouteDecision,
+        ROUTE_PROMPT.format_messages(question=state["question"]),
+        default=RouteDecision(route="hybrid", reason="router failed, defaulting to hybrid"),
     )
     route = decision.route if decision.route in ("vector", "keyword", "hybrid") else "hybrid"
     return {
         "route": route,
         "query": state["question"],
         "attempts": 0,
-        "trace": [f"route={route} ({decision.reason})"],
+        "trace": [f"route={route} ({decision.reason})" + ("" if ok else " [FALLBACK]")],
     }
 
 
@@ -142,14 +147,22 @@ def retrieve_node(state: AnchorState) -> AnchorState:
 
 
 def grade_node(state: AnchorState) -> AnchorState:
-    decision = (GRADE_PROMPT | get_llm().with_structured_output(GradeDecision)).invoke(
-        {"question": state["question"], "passages": _format(state["docs"])}
+    # If grading fails, call it sufficient. The alternative — looping on a
+    # broken grader — burns quota and still ends up answering; the answer
+    # prompt already refuses to invent support it cannot see.
+    decision, ok = invoke_structured(
+        GradeDecision,
+        GRADE_PROMPT.format_messages(
+            question=state["question"], passages=_format(state["docs"])
+        ),
+        default=GradeDecision(sufficient=True, reason="grader failed, proceeding to answer"),
     )
     return {
         "grade": "sufficient" if decision.sufficient else "insufficient",
         "rationale": decision.reason,
         "query": decision.better_query or state["query"],
-        "trace": state.get("trace", []) + [f"grade={decision.sufficient} ({decision.reason})"],
+        "trace": state.get("trace", [])
+        + [f"grade={decision.sufficient} ({decision.reason})" + ("" if ok else " [FALLBACK]")],
     }
 
 

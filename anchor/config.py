@@ -4,9 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Settings below only picks up ANCHOR_*-prefixed keys, and it populates this
+# object rather than the process environment. Provider SDKs read their keys
+# straight from os.environ (ANTHROPIC_API_KEY, OPENROUTER_API_KEY, ...), so
+# .env has to be loaded into the environment too or those lookups miss.
+load_dotenv(REPO_ROOT / ".env")
 
 
 class Settings(BaseSettings):
@@ -18,6 +25,9 @@ class Settings(BaseSettings):
     llm_provider: str = "anthropic"
     llm_model: str = ""
     llm_temperature: float = 0.0
+    llm_base_url: str = ""
+    """Override the API endpoint. Only used by OpenAI-compatible gateways
+    (OpenRouter, Together, a local vLLM); ignored otherwise."""
 
     # Qdrant. Empty url => embedded local-file mode (no Docker needed).
     qdrant_url: str = ""
