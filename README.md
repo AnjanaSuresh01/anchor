@@ -67,6 +67,66 @@ That second trace is the whole design in one screen: the loop firing, failing
 honestly, and refusing. `evals/golden_set.jsonl` contains ten questions like it,
 and the results table reports how often it gets them right.
 
+## MCP server
+
+Anchor's retrievers are exposed as MCP tools, so any MCP client — Claude
+Desktop, Cursor, a custom agent — can query the corpus directly.
+
+```bash
+python -m anchor.mcp_server          # stdio
+python -m anchor.mcp_server --http   # streamable-http (stateless, 2026-07 spec)
+```
+
+| Tool | Call it when |
+|---|---|
+| `search_papers` | asking what research exists on a topic |
+| `find_researcher` | asking about a **person** — returns each resolved individual separately |
+| `papers_by_person` | narrowing to one person after a name turned out to be shared |
+| `check_coverage` | about to make a specific claim and unsure the corpus supports it |
+| `corpus_stats` | asking what the corpus is |
+
+**No tool makes a model call.** The client's model does the reasoning; the
+server returns facts about the corpus, each carrying an arXiv id. Tool
+descriptions state *when* to call them rather than only what they do, because
+models select tools far more reliably from a trigger condition.
+
+Claude Desktop config (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "anchor": {
+      "command": "C:\\Users\\you\\dev\\anchor\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "anchor.mcp_server"],
+      "cwd": "C:\\Users\\you\\dev\\anchor"
+    }
+  }
+}
+```
+
+`find_researcher` is the tool that does not exist elsewhere. Any name-matching
+search answers *"what else has this author written"* with the union of everyone
+sharing the name — seven people, in the case of Wei Zhang. This returns them
+separately with a `distinct_people_with_this_name` count.
+
+### `check_coverage` reports "uncertain", never "not covered"
+
+The tool originally returned a boolean against a threshold set by eye. It got
+its first hard case wrong: a question the corpus genuinely cannot answer scored
+0.7907 against a floor of 0.78 and came back `covered: true`.
+
+`evals/calibrate_coverage.py` swept the floor against the golden set's 40
+answerable and 10 unanswerable questions. **The classes overlap** — unanswerable
+questions reach 0.7743, answerable ones fall to 0.5423, and the score also
+shifts with phrasing. No threshold separates them.
+
+What the data supports is one-sided: no unanswerable question reached 0.78, so
+clearing it is evidence of presence. Falling below it is *not* evidence of
+absence, because 45% of answerable questions land there too. So the tool returns
+`covered` or `uncertain` and never claims absence, and tells the model to decide
+from the returned titles rather than the score. A tool that asserts a confident
+boolean its signal cannot support is worse than one that returns evidence.
+
 ## Architecture
 
 ```mermaid
