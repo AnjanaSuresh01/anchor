@@ -8,9 +8,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY anchor/ ./anchor/
 
-# The corpus is not baked in — it's generated, gitignored, and would go stale.
-# docker-compose mounts ./data instead; run the ingest on the host first:
-#   python -m anchor.ingest.arxiv_fetch --limit 200
+# Nothing under data/ is baked in — corpus, index, resolved authors and the
+# entity graph are all generated and would go stale in an image. compose mounts
+# ./data instead; run the host-side pipeline first:
+#   python -m anchor.ingest.arxiv_fetch --limit 2000
+#   python -m anchor.entities.resolve && python -m anchor.entities.graph
 
 # Bake the embedding model into the image rather than downloading it on first
 # request — otherwise the first query pays a ~130MB cold start.

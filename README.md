@@ -12,6 +12,61 @@ set measures how often it gets that right.
 > about the corpus is checked by a script that fails loudly when it stops being
 > true. Where something is a heuristic or a known limitation, it says so.
 
+## What it looks like
+
+Two runs, verbatim, on the 2,000-paper corpus with a local 3B model.
+
+**An author question — the case name matching gets wrong.** The router picks the
+resolved-entity graph and returns exactly this researcher's two papers. BM25
+asked the same thing returns eight, of which two are his.
+
+```
+$ python -m anchor.cli "Which papers are authored by Gian Luca Pozzato?" --trace
+
+Sources
+  [2607.22365v1] Learning Structural Convergence: A Neuro-Symbolic Benchmark…  graph
+  [2607.21421v1] Bridging the Gap Between Plausibility and Admissibility…      graph
+
+Trace
+  route=graph (Questions about a specific author require traversal of resolved people.)
+  retrieve[1] graph -> 2 docs
+  grade=True (The passages provide author information for the papers authored by
+             Gian Luca Pozzato.)
+  answer
+```
+
+**A question the corpus cannot answer.** The grader rejects its own retrieval,
+rewrites the query, retrieves again, still finds nothing — and then says so,
+naming what the corpus *does* cover instead of inventing an answer.
+
+```
+$ python -m anchor.cli "What do these papers say about quantum error correction
+                        thresholds in superconducting qubits?" --trace
+
+The papers do not provide specific information about quantum error correction
+thresholds in superconducting qubits. The provided passages discuss various
+aspects related to quantum computing, such as meta-decoding for quantum error
+correction, autoregressive drift in quantum circuit synthesis, quantum
+cryptanalysis on IBM Quantum Hardware, AI-accelerated distributed quantum
+optimization, and quantum spectral models. None of these papers directly
+address the specific topic of quantum error correction thresholds in
+superconducting qubits.
+
+Trace
+  route=vector (…a topic within quantum computing research.)
+  retrieve[1] vector -> 6 docs
+  grade=False (The provided passages do not specifically discuss quantum error
+              correction thresholds in superconducting qubits.)
+  rewrite -> 'quantum error correction thresholds superconducting qubits'
+  retrieve[2] vector -> 6 docs
+  grade=False (…)
+  answer
+```
+
+That second trace is the whole design in one screen: the loop firing, failing
+honestly, and refusing. `evals/golden_set.jsonl` contains ten questions like it,
+and the results table reports how often it gets them right.
+
 ## Architecture
 
 ```mermaid
@@ -72,6 +127,29 @@ Or serve it:
 uvicorn anchor.api.app:app --reload
 # POST /query {"question": "..."}
 ```
+
+### Docker — written and reviewed, not executed
+
+`Dockerfile` and `docker-compose.yml` are in the repo but **have never been
+run**: the machine this was built on has no Docker installed, and claiming
+otherwise would be the kind of unverified assertion the rest of this project
+tries to avoid.
+
+Reading them did surface two things that would have broken the first
+`docker compose up`, both now fixed:
+
+- **The Qdrant service starts empty.** Embedded mode writes the index to
+  `data/qdrant` on the host; pointing the app at the Qdrant *container* means
+  that index isn't there and every vector query silently returns nothing. A
+  one-shot `index` service now builds the collection against the server and the
+  API waits on it via `service_completed_successfully`.
+- **`localhost` inside a container is the container.** With
+  `ANCHOR_LLM_PROVIDER=ollama` the app would try to reach an Ollama server
+  inside its own namespace. Now routed through `host.docker.internal` with an
+  explicit `host-gateway` mapping.
+
+Both are the sort of thing that only shows up when you run it, so treat the
+compose path as untested until someone does.
 
 ## Configuration
 

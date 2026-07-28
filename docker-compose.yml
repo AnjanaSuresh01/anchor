@@ -13,24 +13,49 @@ services:
       timeout: 3s
       retries: 12
 
+  # Embedded mode builds the index into data/qdrant on the host. Pointing the
+  # app at the Qdrant *service* means that index is not there — the server
+  # starts empty, and every vector query returns nothing. So the collection has
+  # to be built against the server once before the API is useful.
+  index:
+    build: .
+    volumes:
+      - ./data:/app/data
+    environment:
+      ANCHOR_QDRANT_URL: http://qdrant:6333
+    command: ["python", "-m", "anchor.index.build"]
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    restart: "no"
+
   anchor:
     build: .
     ports:
       - "8000:8000"
     volumes:
-      # Corpus is generated, not baked into the image. Run the ingest on the
-      # host first: python -m anchor.ingest.arxiv_fetch --limit 200
+      # Corpus, resolved authors and the entity graph are all generated. Run
+      # the host-side pipeline first:
+      #   python -m anchor.ingest.arxiv_fetch --limit 2000
+      #   python -m anchor.entities.resolve && python -m anchor.entities.graph
       - ./data:/app/data
     environment:
-      # Non-empty URL switches anchor/index/vector.py from embedded mode to
-      # this service. No code change.
       ANCHOR_QDRANT_URL: http://qdrant:6333
       ANCHOR_LLM_PROVIDER: ${ANCHOR_LLM_PROVIDER:-anthropic}
+      ANCHOR_LLM_MODEL: ${ANCHOR_LLM_MODEL:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # localhost inside a container is the container. An Ollama server running
+      # on the host is only reachable via the host gateway below.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       qdrant:
         condition: service_healthy
+      index:
+        condition: service_completed_successfully
 
 volumes:
   qdrant_storage:
