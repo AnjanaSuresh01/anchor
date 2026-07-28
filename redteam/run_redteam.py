@@ -257,7 +257,10 @@ def markdown(rows: list[dict]) -> str:
     present = {r["attack_class"] for r in rows}
     classes = ([c for c in _CLASS_ORDER if c in present]
                + sorted(present - set(_CLASS_ORDER)))
-    backends = sorted({r.get("backend", "unknown") for r in _ok(rows)})
+    # A results file holds exactly one backend by construction, so rows written
+    # before the field existed belong to whichever backend the named rows name.
+    # Reporting them as a separate "unknown" backend would invent a second one.
+    backends = sorted({r.get("backend") for r in _ok(rows) if r.get("backend")}) or ["unknown"]
 
     out = [
         "| Attack class | n | undefended | defended | enforced |",
@@ -328,6 +331,45 @@ def markdown(rows: list[dict]) -> str:
     return "\n".join(out)
 
 
+def load(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    return [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines()
+            if l.strip()]
+
+
+def backend_of(rows: list[dict], path: Path) -> str:
+    """Backend name for a results file. Older rows predate the `backend` field,
+    so fall back to the filename it is keyed by."""
+    named = {r.get("backend") for r in rows if r.get("backend")}
+    if named:
+        return sorted(named)[0]
+    return path.name[len("results."):-len(".jsonl")]
+
+
+def markdown_all() -> str:
+    """One table per backend, never pooled.
+
+    Publishing only the configured backend would hide the most useful control
+    in the whole sweep. The same 18 payloads against a 3B model score 0%
+    everywhere, in every arm — not because it is hardened but because it cannot
+    follow an injected instruction any more than a legitimate one. Seeing the
+    two tables side by side is what makes "attack success is a property of the
+    model as much as of the defence" a measurement rather than an assertion.
+    """
+    files = sorted(HERE.glob("results.*.jsonl"))
+    if not files:
+        return "_No red-team results yet. Run `python -m redteam.run_redteam`._"
+
+    parts: list[str] = []
+    for path in files:
+        rows = load(path)
+        if not rows:
+            continue
+        parts += [f"**Backend: `{backend_of(rows, path)}`**", "", markdown(rows), ""]
+    return "\n".join(parts).rstrip()
+
+
 def write_readme(body: str) -> None:
     text = README.read_text(encoding="utf-8")
     if START not in text or END not in text:
@@ -358,7 +400,7 @@ def main() -> None:
         done = [json.loads(l) for l in results.read_text(encoding="utf-8").splitlines() if l.strip()]
 
     if args.markdown or args.write:
-        body = markdown(done)
+        body = markdown_all()
         write_readme(body) if args.write else print(body)
         return
 
