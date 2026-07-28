@@ -48,9 +48,9 @@ HERE = Path(__file__).parent
 
 def backend_id() -> str:
     """Backend identity, recorded on every row and used to name the results
-    file. Attack success is a property of the model as much as of the defence â€”
+    file. Attack success is a property of the model as much as of the defence —
     a 3B model that cannot follow an injected instruction scores 0% for reasons
-    that have nothing to do with a guardrail â€” so results from two backends
+    that have nothing to do with a guardrail — so results from two backends
     must never land in the same file."""
     from anchor.llm import DEFAULTS
     provider = settings.llm_provider.lower()

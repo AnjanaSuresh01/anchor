@@ -7,10 +7,13 @@ grades what came back, and re-queries when the evidence is thin. When the corpus
 genuinely doesn't cover a question it says so instead of guessing — and the eval
 set measures how often it gets that right.
 
-> **No number in this README is typed by hand.** The results table is generated
-> from `evals/results.jsonl` by `evals/report_markdown.py`, and every claim
-> about the corpus is checked by a script that fails loudly when it stops being
-> true. Where something is a heuristic or a known limitation, it says so.
+> **No results table in this README is typed by hand.** The architecture
+> comparison is generated from `evals/results.jsonl` by
+> `evals/report_markdown.py`, and the attack-success table from
+> `redteam/results.*.jsonl` by `redteam/run_redteam.py --write`; both regenerate
+> to the byte from the saved runs. Every claim about the corpus is checked by a
+> script that fails loudly when it stops being true. Where something is a
+> heuristic, an incomplete run, or a known limitation, it says so.
 
 ## What it looks like
 

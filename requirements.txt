@@ -10,8 +10,9 @@ qdrant-client[fastembed]
 rank-bm25
 
 # Ingest
+# Metadata only - titles, abstracts and author lists. No PDF is ever fetched or
+# parsed, so there is no PDF library here.
 arxiv
-pymupdf
 
 # Service
 fastapi
