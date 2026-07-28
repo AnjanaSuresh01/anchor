@@ -68,13 +68,14 @@ def by_question_type(all_rows: list[dict]) -> str:
     author questions are where the entity graph should show up, and they are
     only 4 of 50."""
     types = sorted({r["type"] for r in all_rows if not r.get("error")})
-    header = "| Question type | " + " | ".join(
+    header = "| Question type | n | " + " | ".join(
         f"{k} `{ARCHITECTURES[k][0]}`" for k in sorted(ARCHITECTURES)
     ) + " |"
-    lines = [header, "|---|" + "---:|" * len(ARCHITECTURES)]
+    lines = [header, "|---|---:|" + "---:|" * len(ARCHITECTURES)]
 
     for t in types:
         cells = []
+        counts = set()
         for key in sorted(ARCHITECTURES):
             subset = [
                 r for r in all_rows
@@ -83,10 +84,16 @@ def by_question_type(all_rows: list[dict]) -> str:
             if not subset:
                 cells.append("—")
                 continue
+            counts.add(len(subset))
             s = summarise(subset)
             metric = s["recall@k"] if s["recall@k"] is not None else s["refusal_accuracy"]
             cells.append(fmt(metric))
-        lines.append(f"| `{t}` | " + " | ".join(cells) + " |")
+        # Questions per architecture, carried in the table itself: a 0.286 ->
+        # 0.964 swing means something different over 4 questions than over 40,
+        # and a reader should not have to open the golden set to find out which.
+        n = str(min(counts)) if len(counts) == 1 else (
+            f"{min(counts)}–{max(counts)}" if counts else "—")
+        lines.append(f"| `{t}` | {n} | " + " | ".join(cells) + " |")
 
     return "\n".join(lines)
 
