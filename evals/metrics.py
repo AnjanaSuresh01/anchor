@@ -16,6 +16,11 @@ from anchor.config import settings
 _TOP_K = settings.top_k
 
 # Phrases the answer prompt steers the model toward when evidence is missing.
+#
+# Calibrated against 60 hand labels (evals/calibrate_refusal.py): kappa 0.832,
+# precision 1.000, recall 0.828. The error is entirely one-directional — the
+# patterns never invent a refusal, they only miss ones phrased unusually, so
+# every refusal count is a lower bound.
 REFUSAL_PATTERNS = [
     r"cannot answer",
     r"can't answer",
@@ -26,6 +31,18 @@ REFUSAL_PATTERNS = [
     r"unable to answer",
     r"not in (?:the|this) (?:corpus|provided)",
     r"insufficient (?:information|evidence)",
+]
+
+# The five phrasings the calibration sample showed being missed. Kept separate
+# and OFF by default: adding them and then re-scoring the same 60 labels would
+# be fitting the detector to its own test set. Enable together with a fresh
+# labelled sample to get an honest kappa for the extended patterns.
+UNVALIDATED_EXTRA_PATTERNS = [
+    r"there are no papers",
+    r"none of the (?:provided|given) papers",
+    r"do(?:es)? not (?:report|provide|directly)",
+    r"not directly relate",
+    r"cannot find",
 ]
 _REFUSAL = re.compile("|".join(REFUSAL_PATTERNS), re.IGNORECASE)
 

@@ -19,6 +19,7 @@ flowchart LR
     Q[Question] --> R{route}
     R -->|vector| RET[retrieve]
     R -->|keyword| RET
+    R -->|graph| RET
     R -->|hybrid| RET
     RET --> G{grade}
     G -->|insufficient| RW[rewrite query]
@@ -29,30 +30,39 @@ flowchart LR
     subgraph Retrieval
         V[(Qdrant<br/>dense)]
         B[(BM25<br/>lexical)]
+        K[(Kuzu<br/>resolved people)]
     end
     RET --- V
     RET --- B
+    RET --- K
 ```
 
-The `grade → rewrite → retrieve` loop is the part that makes this agentic rather
-than a fixed pipeline: the model decides whether its own retrieval was good
-enough, and gets a bounded number of second chances.
+The `grade → rewrite → retrieve` loop is what makes this agentic rather than a
+fixed pipeline: the model decides whether its own retrieval was good enough and
+gets a bounded number of second chances. On this backend it is also the part
+that does not pay for itself — see the results.
 
-**Why hybrid.** Dense search handles "what work is there on agent memory". It is
-poor at exact tokens — an arXiv id, a surname, a model name like `GLiNER`. BM25
-covers those. The router picks per question; `hybrid` is the fallback when it's
-unsure.
+**Why three retrievers.** Dense search handles *"what work is there on agent
+memory"*. It is poor at exact tokens — an arXiv id, a model name like `GLiNER` —
+which is BM25's job. Neither can answer *"what else has this author written"*,
+because both match a **name string**: ask either for Wei Zhang and you get seven
+different researchers' work returned as one person's. The graph traverses
+resolved people instead. Measured effect on author questions: **0.286 → 0.964**.
 
 ## Quickstart
 
 ```bash
-python -m venv .venv && .venv\Scripts\activate     # Windows
+python -m venv .venv && .venv\Scripts\activate      # Windows
 pip install -r requirements.txt
+copy .env.example .env                              # then set a provider + key
 
-copy .env.example .env                             # then add your API key
+python -m anchor.ingest.arxiv_fetch --limit 2000    # fetch corpus
+python -m anchor.index.build                        # embed + index
 
-python -m anchor.ingest.arxiv_fetch --limit 200    # fetch corpus
-python -m anchor.index.build                       # embed + index
+python -m anchor.entities.resolve                   # resolve author mentions
+python -m anchor.entities.graph                     # load the entity graph
+
+python -m scripts.status                            # everything present?
 python -m anchor.cli "What work is there on agent memory?" --trace
 ```
 
@@ -69,32 +79,132 @@ Everything is env-driven (`.env.example` documents each key).
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ANCHOR_LLM_PROVIDER` | `anthropic` | `anthropic` · `openai` · `ollama` |
-| `ANCHOR_LLM_MODEL` | provider default | `claude-opus-5` for Anthropic |
+| `ANCHOR_LLM_PROVIDER` | `anthropic` | `anthropic` · `openai` · `openrouter` · `ollama` |
+| `ANCHOR_LLM_MODEL` | provider default | `claude-opus-5` · `openai/gpt-oss-20b:free` · `qwen2.5:3b` |
+| `ANCHOR_LLM_BASE_URL` | *(empty)* | For OpenAI-compatible gateways |
 | `ANCHOR_QDRANT_URL` | *(empty)* | Empty = embedded local file, no Docker |
 | `ANCHOR_TOP_K` | `6` | Passages per retriever |
 | `ANCHOR_MAX_GRADER_RETRIES` | `2` | Bounds the rewrite loop |
+| `ANCHOR_ENABLE_GRAPH_ROUTE` | `true` | Off = architecture C, on = D |
 
 Runs fully offline with `ANCHOR_LLM_PROVIDER=ollama` — no API key, nothing
-leaves the machine.
-
-### A note on the Claude models
-
-`claude-opus-5` (and the Claude 5 family generally) **removed the sampling
-parameters** — sending `temperature`, `top_p` or `top_k` returns a 400. So
-`anchor/llm.py` applies `temperature` only to the OpenAI and Ollama backends.
-Thinking is on by default on that model; behaviour is steered by prompt rather
-than by sampling.
+leaves the machine. That is how the published results were produced.
 
 ## Results
 
 <!-- RESULTS:START -->
-_No results yet. Run `python -m evals.run_eval`._
+| | Architecture | n | recall@k | refusal acc | correct refusals | false refusals | unsupported cites | calls | p50 s |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| **A** | `naive_vector` | 50 | 0.635 | 0.880 | 7/10 | 3/40 | 5 | 1.000 | 6.700 |
+| **B** | `hybrid` | 50 | 0.815 | 0.880 | 4/10 | 0/40 | 1 | 1.000 | 14.800 |
+| **C** | `agentic` | 50 | 0.680 | 0.800 | 5/10 | 5/40 | 2 | 3.980 | 24.800 |
+| **D** | `agentic+graph` | 50 | 0.753 | 0.880 | 8/10 | 4/40 | 3 | 3.920 | 22.800 |
+
+`recall@k` is measured only on questions with ground-truth ids. `refusal acc` is answering when answerable and refusing when not. `unsupported cites` counts citations to papers that were never retrieved.
+
+**Recall / refusal accuracy by question type** (recall where ground truth exists, refusal accuracy for unanswerables):
+
+| Question type | A `naive_vector` | B `hybrid` | C `agentic` | D `agentic+graph` |
+|---|---:|---:|---:|---:|
+| `aggregate` | 1.000 | 1.000 | 1.000 | 1.000 |
+| `author` | 0.000 | 0.786 | 0.286 | 0.964 |
+| `exact_id` | 0.000 | 0.600 | 0.400 | 0.200 |
+| `multi_hop` | 0.438 | 0.500 | 0.500 | 0.500 |
+| `single_hop` | 1.000 | 1.000 | 0.900 | 0.950 |
+| `unanswerable` | 0.700 | 0.400 | 0.500 | 0.800 |
+
+_Generated by `python -m evals.report_markdown` from 200 saved runs._
 <!-- RESULTS:END -->
 
 The table above is generated by `python -m evals.report_markdown --write`, not
 typed. A hand-edited results table drifts from the data it reports and the
 drift is invisible.
+
+### What the numbers say
+
+**Entity resolution is the one unambiguous win.** On author questions, C scores
+0.286 and D scores 0.964 — the same agent, differing only in whether the
+resolved-person graph is reachable. That is the single largest effect anywhere
+in the table, and it lands exactly where the layer was built to land. Name
+matching cannot separate seven researchers called Wei Zhang; traversing
+resolved people can.
+
+**The agentic loop does not pay for itself here.** Plain hybrid retrieval (B)
+has the best overall recall at 0.815, beating both agentic architectures while
+using **one model call instead of four** and half the latency. The grader loop
+costs 4× the calls and *reduces* recall. It is not close.
+
+**The loop actively hurts honesty in one configuration.** C has the worst
+refusal accuracy in the table (0.800) and the most false refusals (5 of 40) —
+it talks itself out of answers it had the evidence for. This is the 3B grader:
+on one question it rewrote the query to *"the impact of climate change on polar
+bear populations"*, which appears nowhere in the corpus or the question.
+
+**Recall and honesty pull apart.** B has the best recall (0.815) and the *worst*
+correct-refusal rate (4 of 10) — it retrieves well and then answers anyway. D
+has the best refusal behaviour (8 of 10) at slightly lower recall. If wrong
+answers are cheap, take B. If a confident wrong answer is the expensive failure
+— which is the premise of this whole project — take D.
+
+**The simplest architecture hallucinates least.** Unsupported citations:
+A=5, B=1, C=2, D=3. Naive dense retrieval cites papers it never retrieved five
+times; hybrid does it once.
+
+### What these numbers are not
+
+- **`exact_id` differences are noise.** There are 5 such questions, so one
+  question is 0.2. C scores 0.400 and D 0.200 on a single question where the
+  router picked `vector` over `keyword`. No exact-id question routed to the
+  graph in either architecture — this is router variance, not a graph effect.
+- **The backend penalises the architectures under test.** The sweep runs on a
+  local 3B model, chosen because the free API tier caps at 50 calls/day and this
+  needs ~500. The agentic architectures are precisely the ones that depend on
+  the model grading its own retrieval, so C and D are handicapped in a way A and
+  B are not. A stronger grader is a `.env` change; the conclusion "the loop
+  doesn't pay" is specific to this backend and should not be generalised.
+- **Refusal accuracy rests on a keyword heuristic** — calibrated below rather
+  than assumed.
+- **`recall@k` has a ceiling.** q34 has 7 relevant papers against `top_k=6`, so
+  its maximum is 0.857 regardless of retrieval quality. It caps every
+  architecture identically.
+
+### Is the refusal metric trustworthy?
+
+Refusal accuracy is the headline honesty number and it is produced by a regex,
+so it was checked rather than trusted. 60 answers were sampled (stratified,
+since unanswerable questions are only a fifth of the set), hand-labelled, and
+compared with the heuristic:
+
+| | |
+|---|---|
+| Raw agreement | 0.917 |
+| **Cohen's κ** | **0.832** |
+| Precision | 1.000 |
+| Recall | 0.828 |
+| Confusion | tp=24 fp=0 fn=5 tn=31 |
+
+κ rather than raw agreement because one class dominates, and raw agreement
+flatters a rater that simply guesses the majority. At 0.83 the agreement is
+substantial, so the refusal numbers above can be read as meaningful.
+
+**The error is one-directional, which matters more than its size.** Precision
+is 1.000 — the heuristic never calls something a refusal that a human would
+not. All five misses are refusals phrased in ways the patterns don't cover:
+
+> *"there are no papers authored by Wei Zhang in this corpus"*
+> *"None of the provided papers directly discuss Byzantine fault tolerance"*
+> *"The papers do not provide any specific information about…"*
+
+So **every refusal count in the results table is a lower bound**, and the true
+correct-refusal rates are somewhat higher than reported. Nothing in the table
+overstates how honest the system is.
+
+Reproduce with:
+
+```bash
+python -m evals.calibrate_refusal --export   # writes a sample to label
+python -m evals.calibrate_refusal --score    # kappa + the disagreements
+```
 
 ## Evaluation
 
